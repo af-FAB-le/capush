@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Main</title>
+    <!-- UIkit CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/uikit.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <!-- UIkit JS -->
+    <script src="js/uikit.min.js"></script>
+    <!-- <script src="js/uikit-icons.min.js"></script> -->
+    <script src="js/jquery.min.js"></script>
+<script src="js/jquery-ui.js"></script>
+<body>
+    <div class="uk-container uk-container-center uk-margin-top uk-margin-large-bottom">
+    	<ul id="tabs-nav" class="uk-nav-dropdown" uk-sticky uk-tab data-uk-tab="{connect:'#tabs'}">
+		    <li class="uk-active"><a class="tab-nav" href="#">Main</a></li>
+		</ul>
+		<ul id="tabs" class="uk-switcher">
+        <li><div id="tab-main" class="uk-flex uk-flex-wrap uk-flex-around">
+            <div class="uk-panel uk-panel-box uk-resize unit-panel">
+                <h3 class="uk-panel-title">Units present in the space</h3>
+                <div class="uk-panel-scrollable">
+                    <ul id="all-units" class="uk-list">
+                    </ul>
+                </div>
+                <div><span id="num-all-units"></span> units total</div>
+            </div>
+            <div class="uk-panel uk-panel-box uk-resize unit-panel">
+                <h3 class="uk-panel-title">Available units</h3>
+                <div class="uk-panel-scrollable">
+                    <ul id="available-units" class="uk-list selectable">
+                    </ul>
+                </div>
+                <div class="uk-display-block uk-clearfix">
+                <div class="uk-float-right"><span id="num-available-units"></span> units total</div></div>
+                <div>
+                <!-- <button class="btn-available" onclick="ask_unit_to_show_itself();">Locate selected unit</button> -->
+                <button class="btn-available" onclick="use_selected_unit();">Use selected unit</button>
+                </div>
+                <button onclick="closeAllSessions();" uk-close>Close all sessions </button>
+            </div>
+
+            <div class="uk-panel uk-panel-box uk-resize unit-panel">
+                <h3 class="uk-panel-title">Project name</h3>
+                <input id="project_name_imput" type="text" placeholder="e.g., tool" onchange="update_project_name()"></input>
+            </div>
+
+            <div class="uk-panel uk-panel-box uk-resize unit-panel">
+                <h3 class="uk-panel-title">Meta-data to use</h3>
+                <div class="uk-panel-scrollable">
+                	<form id="meta-data-form">
+                    <ul id="meta-data" class="uk-list">
+                        <li>
+                            <input class="meta-data-input" type="text" placeholder="e.g., tool" onchange="update_meta_data()"></input>
+                        </li>
+                        <li>
+                        	<input class="meta-data-input" type="text" placeholder="e.g., project name" onchange="update_meta_data()"></input>
+
+                        </li>
+                    </ul>
+                    <button onclick="add_meta_data_field(); return false;">+</button>
+                    </form>
+                </div>
+            </div>
+
+        </li>
+    </div>
+</body>
+</html>
+<!-- <script src="../classes.js"></script>
+ --><script src="js/main.js?version=2" type="module"></script>
+<script type="text/javascript">
+	var tabs = UIkit.tab('#tabs-nav');
+    var meta_data = {project_name: undefined};  // TODO  prevent username to be changed after one session has been started
+	
+    //capush event listeners 
+    $(document).on('show', function(){console.log('showing now')});
+
+    $(window).on('closingSession', function(session){
+        console.log("received session closed");
+        destroytab(session.detail);
+    });
+
+     $(window).on('newUnitSession', function(unit){
+        createtab(unit.detail);
+        console.log(unit.detail)
+    });
+
+     $(window).on('unit_list', function(units){
+        display(units.detail.all, "all-units");
+        display(units.detail.available, 'available-units');
+     })
+     
+    function requestUnitConnection(unit_id, unit_name){
+        console.log("sending request to use unit " + unit_name);
+        window.dispatchEvent(new CustomEvent('unitConnectionRequest', {detail: {'unit_id':unit_id}}));
+        console.log("waiting for connection reponse");
+    }
+
+    function closeAllSessions(){
+        console.log("sending request to disconnect all units ");
+        window.dispatchEvent(new CustomEvent('unitDisconnectionRequest', {detail: { 'unit_id':"all" }}));
+        console.log("waiting for reponse");
+    }
+
+    function closeSession(unit_id, unit_name){
+        console.log(unit_id)
+        window.dispatchEvent(new CustomEvent('unitDisconnectionRequest', {detail: {'unit_id':unit_id}}));
+        console.log("waiting for reponse");       
+    }
+
+	$("#meta-data-form").submit(function(e) {
+    	e.preventDefault();
+	});
+
+	$( function() {
+	    $("#available-units").selectable();
+	  } );
+
+	// Simple JavaScript Templating
+	// John Resig - https://johnresig.com/ - MIT Licensed
+	// code taken from https://johnresig.com/blog/javascript-micro-templating/
+	(function(){
+	  var cache = {};
+	   
+	  this.tmpl = function tmpl(str, data){
+	    // Figure out if we're getting a template, or if we need to
+	    // load the template - and be sure to cache the result.
+	    var fn = !/\W/.test(str) ?
+	      cache[str] = cache[str] ||
+	        tmpl(document.getElementById(str).innerHTML) :
+	       
+	      // Generate a reusable function that will serve as a template
+	      // generator (and which will be cached).
+	      new Function("obj",
+	        "var p=[],print=function(){p.push.apply(p,arguments);};" +
+	         
+	        // Introduce the data as local variables using with(){}
+	        "with(obj){p.push('" +
+	         
+	        // Convert the template into pure JavaScript
+	        str
+	          .replace(/[\r\t\n]/g, " ")
+	          .split("<%").join("\t")
+	          .replace(/((^|%>)[^\t]*)'/g, "$1\r")
+	          .replace(/\t=(.*?)%>/g, "',$1,'")
+	          .split("\t").join("');")
+	          .split("%>").join("p.push('")
+	          .split("\r").join("\\'")
+	      + "');}return p.join('');");
+	     
+	    // Provide some basic currying to the user
+	    return data ? fn( data ) : fn;
+	  };
+	})();
+
+    // displays the information contained in the array what (either all_units or avaible_units) in the panel with the id where
+    function display(what, where){
+        var list = $('#' + where);
+        $(list).empty();
+        Object.keys(what).forEach(function(item, index){
+            var unit = document.createElement("li");
+            $(unit).html(what[item].name)
+            $(unit).attr('id', item)
+            $(list).append(unit);
+        });
+        $('#num-' + where).html(Object.keys(what).length);
+    }
+
+    function createtab(unit){
+        var elem = '<li><a class="tab-nav" href="#" id="'+unit.id+'" onclick="console.log(`click`)">' + unit.name + '</a>  <button onclick="closeSession(`'+ unit.id +'`,`'+ unit.name + ' `);" uk-close></button></li>';
+        $('#tabs-nav').append(elem);
+
+        elem = document.createElement("li");
+        $('#tabs').append(elem);
+        
+        // Write the template for the type of unit into elem
+        elem.innerHTML = tmpl("unit_template", {name: unit.name, type: unit.type, id: unit.id});
+
+        var tab_index = -1;
+        $('#tabs-nav').children().each(function(index, item){
+            var a = $(item).children().first().html();
+            if (a == unit.name){
+                tab_index = index;
+                // $(item).children().first().click();
+                console.log("found it at index " + tab_index);
+                tabs = UIkit.tab('#tabs-nav', {connect: '#tabs'});
+                tabs.show(item);
+            }
+        })
+    }
+
+    function destroytab(unitid){
+        console.log("destroying tab "+unitid);
+        var torem = null;
+        $('#tabs-nav').children().each(function(index, item){ // remove tab 
+            var a = $(item).children().first().attr("id");
+            if (a == unitid){
+                tab_index = index;
+                torem = item
+            }
+        })
+        torem.remove(); 
+
+        // remove tab content
+        torem = null;
+        $('#tabs').children().each(function(index, li){ 
+            var h = $(li).find("h3").attr('id');
+            if (h == unitid){
+                li_index = index;
+                torem = li
+            }
+        })
+        if(torem){
+            
+        torem.remove(); 
+        }
+    }   
+
+    // Add another text box to the list of meta data fields
+    function add_meta_data_field(){
+        console.log("adding a meta data field");
+        $('#meta-data').append('<li><input class="meta-data-input" type="text" placeholder="e.g., project name" onchange="update_meta_data()"></input></li>'); 
+    }
+
+    function use_selected_unit(){
+        var unit_name = $('.ui-selected').html();
+        var unit_id = $('.ui-selected').attr('id');
+        // var project_name = $("#project_name_imput").val();
+        // if (!(typeof project_name === 'undefined') && project_name != ""){
+        //     meta_data.project_name = project_name;
+            if (!(typeof unit_name === 'undefined') ){
+                requestUnitConnection(unit_id, unit_name);
+            }
+        // }
+        // else{
+        //     console.log("Project must be setup"); // TODO make this a gorgious alert 
+        // }
+    }
+
+    // callback which updates the global array tags with the current content of the meta data input fields
+    function update_meta_data(){
+        tags = [];
+        $('.meta-data-input').each(function(index, item) {
+            var tag = $(item).val();
+            if (!(typeof tag === 'undefined') && tag.length != 0)
+                tags.push(tag);
+        });
+        console.log(tags);
+    }
+
+    // callback which updates the project_name value required for session start
+    function update_project_name(){
+        var project_name = $("#project_name_imput").val();
+        if (!(typeof project_name === 'undefined'))
+            meta_data.project_name = project_name;
+        console.log(project_name);
+        console.log(meta_data);
+    }
+</script>
+
+<!-- Below are templates, html snippets, which are used to generate the UI for a selected unit. 
+	- unit_template is the most generic which just shows a video element and controls.
+	- camera_control_template contains a panel containing four buttons to move the pan/tilt unit around
+	- bot_control_template is similar to the camera_control_template but it sends move messages instead of pan/tilt messages
+	 -->
+<script type="text/html" id="unit_template">
+  <div id="tab-<%=name%>" class="uk-flex uk-flex-wrap uk-flex-around">
+    <div id="col1-<%=name%>" class="uk-display-block">
+    	<!-- add close option calling close session + url stream -->
+        <img id="preview-<%=name%>" src="http://localhost:8080/stream?topic=/<%=name%>/image&type=ros_compressed"/>
+<!--     	<video id="preview-<%=name%>"></video>  -->
+    	<div class="uk-flex-center">
+    		<button>Live view</button>
+    		<button>Take picture</button>
+    		<button>Record video</button>
+    		<button>Stop</button>
+    	</div>
+    </div>
+    <div id="col2-<%=name%>">
+    </div>
+  </div>
+</script>
+
+<!-- <script type="text/html" id="camera_control_template">
+	<div class="uk-panel">
+		<h3 class="uk-panel-title uk-text-center">Camera control</h3>
+		<div><label><input type="checkbox" id="enable-color-tracking-<%=name%>" onclick="units[`<%=name%>`].update_color_tracking();">Track by color</label><input type="color" id="color-pick-<%=name%>"></div>
+        <div id="pan-tilt-control-<%=name%>" class="pan-tilt-control">
+			<button class="control-button button-control-top" onclick="send_pan_tilt_command(`up`, `<%=name%>`);"><span class="cam-control cam-control-top"></span></button>
+			<button class="control-button button-control-left" onclick="send_pan_tilt_command(`left`, `<%=name%>`);"><span class="cam-control cam-control-left"></span></button>
+			<button class="control-button button-control-right" onclick="send_pan_tilt_command(`right`, `<%=name%>`);"><span class="cam-control cam-control-right"></span></button>
+			<button class="control-button button-control-bottom" onclick="send_pan_tilt_command(`down`, `<%=name%>`);"><span class="cam-control cam-control-bottom"></span></button>
+		</div>
+	</div>
+</script> -->
+
+
+<!-- <script type="text/html" id="bot_control_template">
+    <div class="uk-panel">
+    	<h3 class="uk-panel-title uk-text-center">Bot control</h3>
+    	<div id="bot-control-<%=name%>" class="pan-tilt-control">
+    		<button class="control-button button-control-top" onclick="send_move_command(`forward`, `<%=name%>`);"><span class="cam-control cam-control-top"></span></button>
+    		<button class="control-button button-control-left" onclick="send_move_command(`left`, `<%=name%>`);"><span class="cam-control cam-control-left"></span></button>
+    		<button class="control-button button-control-right" onclick="send_move_command(`right`, `<%=name%>`);"><span class="cam-control cam-control-right"></span></button>
+    		<button class="control-button button-control-bottom" onclick="send_move_command(`backward`, `<%=name%>`);"><span class="cam-control cam-control-bottom"></span></button>
+    	</div>
+    </div>
+</script> -->
+

@@ -1,0 +1,7 @@
+[
+	{"bottle-server-address" : "127.0.0.1",
+	"bottle-server-port" : 8081,
+	"websocket-server-address" : "127.0.0.1",
+	"websocket-server-port" : 8001
+	}
+]
