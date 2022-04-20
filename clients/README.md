@@ -71,7 +71,7 @@ CapushUnit(ws, {'unit_name': ''})
 
 ### Example
 
-run [basic.mjs](clients/unit_examples/basic.mjs) using the [NPM esm module](https://www.npmjs.com/package/esm)
+run [basic.mjs](unit_examples/basic.mjs) using the [NPM esm module](https://www.npmjs.com/package/esm)
 
 `> node -r esm basic.mjs`
 ```
