@@ -79,7 +79,6 @@ These events are fired when the client is sending a video stream
 ### Examples
 * [webcam](webcam_unit.html)
 * [buttons](button_unit.html)
-* [clara's project webcam](webcam_owned_unit.html)
 * [clara's project screen](screen_owned_unit.html)
 
 ## CapushManager (CapushClient)
