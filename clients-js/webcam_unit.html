@@ -1,0 +1,85 @@
+<!-- Gets user's webcam and sends stream to the connected projects - the unit is available to public-->
+<!-- Enable chrome://flags/#unsafely-treat-insecure-origin-as-secure to use on lan -->
+
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Webcam unit example</title>
+    <style>
+    video {
+        width: 100%;
+    }
+    #media {
+        max-width: 1280px;
+    }
+    </style>
+</head>
+<body>
+<h1 class='unit-name'>No name</h1>
+<p class='unit-project'></p>
+<div id="media">
+    <video id="webcam"></video>
+</div>
+<script type="module">
+    import {CapushClient} from './classes.mjs';
+    var constraints = {audio: false, video: true};
+    constraints.video = { width: 960, height: 540, frameRate: { max: 10 }};
+    
+    if(navigator.mediaDevices){
+
+        navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+
+            var client_properties = {
+                'name': 'simplewebcam',
+                'stream': stream
+            }; 
+            var unit = new CapushClient(client_properties);
+            
+            // Just updating connected project when changes
+            unit.addEventListener('unit_info', (e) => {
+                console.log(e.detail)
+                var project = "Not connected to any project"
+                if(e.detail.connected_to != null){
+                    project = "Connected to: " + e.detail.connected_to
+                }
+                Array.from(document.getElementsByClassName('unit-project')).forEach((elem) => {
+                    elem.innerHTML = project
+                })
+            })
+
+            unit.addEventListener("connected", () => {
+                console.log("Hey I'm "+ unit.name + ", My ID is:"+unit.id );
+                Array.from(document.getElementsByClassName('unit-name')).forEach((elem) => {
+                    elem.innerHTML = unit.name
+                })
+
+                unit.addEventListener('snapshot', () => {
+                    console.log("Shoot a picture!")
+                })
+
+                unit.addEventListener('recording_status', (event) => {
+                    if(event.detail.recording){
+                        console.log("Recording started!")
+                    }else{
+                        console.log("recording stopped")
+                    }
+                })
+            })
+            var video = document.querySelector('#webcam'); // <- Here
+            video.srcObject = stream;
+            video.onloadedmetadata = function(e) {
+                video.play();
+            };
+            window.addEventListener('beforeunload', function(){
+                unit.close()
+            })
+        }, function(err) {
+            alert('Could not acquire media: ' + err);
+        });
+    }
+    else{
+        console.error("mediaDevices undefined")
+    }
+</script>
+</body>
+</html>

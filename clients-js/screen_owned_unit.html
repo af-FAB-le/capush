@@ -1,0 +1,75 @@
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Display unit example</title>
+    <style>
+    video {
+        width: 500px;
+    }
+    #media {
+        max-width: 1280px;
+    }
+    </style>
+</head>
+<body>
+
+<ul id="media"></ul>
+<script type="module">
+    import {CapushClient} from './classes.mjs';
+
+    var unit = new CapushClient({"gets_videostreams": true, 'project_id' : 'clara', 'name': 'clarasownedscreen'});
+
+    unit.addEventListener("connected", () => {
+        console.log("Hey I'm "+ unit.name + ", My ID is:"+unit.id );
+    })
+
+    unit.addEventListener('peer_connection_start', (e) => {
+        if(e.detail.has_videostream){
+            var li = document.createElement("li")
+            li.setAttribute('id', "li-"+e.detail.id)
+            var elem = document.createElement('video')
+            elem.setAttribute('id', 'video'+e.detail.id)
+            elem.setAttribute('autoplay', true)
+            elem.setAttribute('allow', "autoplay")
+            elem.muted = true;
+            li.append(elem)
+            document.getElementById('media').append(li);
+            attachStream(elem, e.detail.id, unit.incomingstreams.streams[e.detail.id])
+        }
+    })
+
+    function attachStream(elem, peerid, stream){
+        elem.srcObject = stream;
+        if(elem.readyState > 0){
+            elem.play()
+        }else{            
+            elem.addEventListener('canplay', (event) => {
+                event.target.play();
+            });      
+        }
+    }
+
+    unit.addEventListener('incomingstreams', (e) => {
+        var streams = e.detail
+        for (const [peerid, stream] of Object.entries(streams)) {
+            var elem = document.getElementById('video'+peerid)
+            if(elem){
+                attachStream(elem, peerid, stream)
+            }
+        }
+    })
+
+    unit.addEventListener('peer_connection_end', (e) => {
+        if(e.detail.has_videostream){
+            var li = document.getElementById("li-"+e.detail.id)
+            li.remove()
+        }
+    })
+
+    window.addEventListener('beforeunload', function(){
+        unit.close()
+    })
+</script>
+</body>
+</html>

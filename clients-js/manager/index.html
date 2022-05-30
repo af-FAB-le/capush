@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Manager</title>
+    <!-- UIkit CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/uikit.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <!-- UIkit JS -->
+    <script src="js/uikit.min.js"></script>
+    <!-- <script src="js/uikit-icons.min.js"></script> -->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/jquery-ui.js"></script>
+    <script type="module">
+
+    // Simple JavaScript Templating
+    // John Resig - https://johnresig.com/ - MIT Licensed
+    // code taken from https://johnresig.com/blog/javascript-micro-templating/
+
+      var cache = {};
+      var tmpl = function tmpl(str, data){
+        // Figure out if we're getting a template, or if we need to
+        // load the template - and be sure to cache the result.
+        var fn = !/\W/.test(str) ?
+          cache[str] = cache[str] ||
+            tmpl(document.getElementById(str).innerHTML) :
+           
+          // Generate a reusable function that will serve as a template
+          // generator (and which will be cached).
+          new Function("obj",
+            "var p=[],print=function(){p.push.apply(p,arguments);};" +
+             
+            // Introduce the data as local variables using with(){}
+            "with(obj){p.push('" +
+             
+            // Convert the template into pure JavaScript
+            str
+              .replace(/[\r\t\n]/g, " ")
+              .split("<%").join("\t")
+              .replace(/((^|%>)[^\t]*)'/g, "$1\r")
+              .replace(/\t=(.*?)%>/g, "',$1,'")
+              .split("\t").join("');")
+              .split("%>").join("p.push('")
+              .split("\r").join("\\'")
+          + "');}return p.join('');");
+         
+        // Provide some basic currying to the user
+        return data ? fn( data ) : fn;
+      };
+
+    import {CapushManager} from '../classes.mjs';
+     var client = new CapushManager({'project_id': "clara", "gets_videostreams": true});
+
+    client.addEventListener("peer_connection_start", function(unit){
+        console.log('peercon start')
+        console.log(unit.detail)
+       if(unit.detail.has_videostream){
+            var container = document.getElementById('videocontainer-'+unit.detail.id)
+            if(!container){
+                container = document.createElement('div')
+                container.setAttribute('id', 'videocontainer-'+unit.detail.id)
+            }
+
+            var elem = document.createElement('video')
+            elem.setAttribute('id', 'video'+unit.detail.id)
+            elem.setAttribute('autoplay', true)
+            elem.setAttribute('allow', "autoplay")
+            elem.muted = true;
+            container.append(elem)
+            document.getElementById('videostreamunits').append(container);
+            attachStream(elem, unit.detail.id, client.incomingstreams.streams[unit.detail.id])
+        }else{
+            console.log('not cam')
+        }
+    });
+
+    function attachStream(elem, peerid, stream){
+        elem.srcObject = stream;
+        if(elem.readyState > 0){
+            elem.play()
+        }else{            
+            elem.addEventListener('canplay', (event) => {
+                event.target.play();
+            });      
+        }
+    }
+
+    client.addEventListener('incomingstreams', (e) => {
+        var streams = e.detail
+        for (const [peerid, stream] of Object.entries(streams)) {
+            var elem = document.getElementById('video'+peerid)
+            if(elem){
+                attachStream(elem, peerid, stream)
+            }
+        }
+    })
+
+    client.addEventListener('peer_connection_end', (e) => {
+        console.log('peercon end')
+        console.log(e.detail)
+        if(e.detail.has_videostream){
+            var container = document.getElementById("videocontainer-"+e.detail.id)
+            container.remove()
+        }
+    })
+
+    client.addEventListener("closingSession", function(session){
+        var elem = document.getElementById('unit-'+session.detail)
+        if(elem != undefined){
+            elem.remove(); 
+        }
+    });
+
+    window.addEventListener('beforeunload', function(){
+        client.close();
+    });
+
+    client.addEventListener("connected", () => {
+        console.log("Hey I'm "+ client.name + ", I am a webcam " );
+    })
+
+    client.addEventListener('videotrack', function(event){
+        window.dispatchEvent(new CustomEvent('videotrack', {detail: event.detail}));
+    })
+
+    client.addEventListener('unit_list', function(units){ 
+        console.log('unit_list')
+        console.log(units.detail.available)
+        var unitTypes = 'available-units'
+        var units = units.detail.available
+        
+        var list = document.getElementById(unitTypes);
+        if(!list){
+            $('#unit_lists').append(tmpl('unit_list', {kind: unitTypes, title: 'Available units'}))
+            $("#available-units").selectable();
+            list = document.getElementById(unitTypes)
+        }
+        $(list).empty();
+        Object.keys(units).forEach(function(item, index){
+            var unit = document.createElement("li");
+            $(unit).html(units[item].name)
+            $(unit).attr('id', item)
+            $(list).append(unit);
+        });
+        $('#num-' + unitTypes).html(Object.keys(units).length);
+     })
+
+    // var tabs = UIkit.tab('#tabs-nav');
+    var meta_data = {project_name: undefined};  // TODO  prevent username to be changed after one session has been started
+
+    document.getElementById("close_all").addEventListener("click", function(){
+        client.closeAllSessions()
+    })
+
+    document.getElementById("btn-available").addEventListener("click", function(){
+        use_selected_unit()
+    })
+
+    document.getElementById("picture").addEventListener("click", function(){
+        client.publishEvent('picture')
+    })
+
+    document.getElementById("startvideo").addEventListener("click", function(){
+        client.publishEvent('startvideo')
+    })
+
+    document.getElementById("stopvideo").addEventListener("click", function(){
+        client.publishEvent('stopvideo')
+    })
+
+    function use_selected_unit(){
+        var unit_name = $('.ui-selected').html();
+        var unit_id = $('.ui-selected').attr('id');
+        if (!(typeof unit_id === 'undefined') ){
+            client.unitConnectionRequest(unit_id);
+        }
+    }
+    
+</script>
+<body>
+    <div class="uk-container uk-container-center uk-margin-top uk-margin-large-bottom">
+        <div class="uk-container uk-flex-inline uk-width-expand">    
+            <div class="uk-container uk-width-1-4 uk-flex">
+
+                <div class="uk-block">
+                    <div id="unit_lists" class="uk-block">
+
+                    </div>
+                    <div>
+                        <button id="btn-available">Use selected unit</button>
+                    </div>
+                    <button id='close_all' uk-close>Close all sessions </button>
+                </div>
+            </div>
+            <div class="uk-container uk-width-expand">
+                <div class="uk-container">
+                    
+                    <div class="uk-flex-center">
+                        <button id="picture"> Take Picture</button>
+                        <button id="startvideo"> Start video </button>
+                        <button id="stopvideo"> Stop video </button>
+                    </div>
+                </div>
+                <div class="uk-container " id="videostreamunits" >
+                    
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
+
+<script type="text/html" id="camera_unit_template">
+  <div id="tab-<%=name%>" class="uk-flex uk-flex-wrap uk-flex-around">
+    <div id="col1-<%=name%>" class="uk-display-block">
+    	<!-- add close option calling close session + url stream -->
+    	<!-- <video id="preview-<%=name%>"></video>  -->
+
+    </div>
+    <div id="col2-<%=name%>">
+    </div>
+  </div>
+</script>
+
+
+<script type="text/html" id="unit_list">
+  <div id="unit_list_<%=kind%>" class="">
+    <h3 class="uk-panel-title"><%=title%></h3>
+
+        <ul id="<%=kind%>" class="uk-list uk-list-line selectable"></ul>
+
+    <div class="uk-display-block uk-clearfix">
+        <div class="uk-float-right"><span id="num-available-units"></span> units total</div>
+    </div>
+  </div>
+</script>
+
+<script type="text/html" id="video_stream_unit">
+
+</script>

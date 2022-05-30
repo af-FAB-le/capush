@@ -1,0 +1,41 @@
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button unit example</title>
+    <style>
+
+    </style>
+</head>
+<body>
+<button id="picture"> Take Picture</button>
+<button id="startvideo"> Start video </button>
+<button id="stopvideo"> Stop video </button>
+<script type="module">
+    import {CapushClient} from './classes.mjs';
+    var unit = new CapushClient();
+    unit.addEventListener("connected", () => {
+        console.log("Hey I'm "+ unit.name + ", I have buttons " );
+    })
+
+    window.addEventListener('beforeunload', function(){
+        unit.close()
+    })
+
+    document.getElementById("picture").addEventListener("click", function(){
+        console.log("taking Picture")
+        unit.publishEvent("picture")
+    })
+
+    document.getElementById("startvideo").addEventListener("click", function(){
+        console.log("start video")
+        unit.publishEvent("startvideo")
+    })
+
+    document.getElementById("stopvideo").addEventListener("click", function(){
+        console.log("stop video")
+        unit.publishEvent("stopvideo")
+    })
+</script>
+</body>
+</html>
